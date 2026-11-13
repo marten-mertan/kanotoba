@@ -1,0 +1,15 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "__KANOTOBA_WORKER_NAME__",
+  "main": "src/index.js",
+  "compatibility_date": "2026-05-03",
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "__KANOTOBA_D1_DATABASE_NAME__",
+      "database_id": "__KANOTOBA_D1_DATABASE_ID__",
+      "migrations_dir": "../database/migrations"
+    }
+  ]
+}

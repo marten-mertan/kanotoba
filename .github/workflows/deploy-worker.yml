@@ -1,0 +1,63 @@
+name: Deploy Kanotoba API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "database/migrations/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kanotoba-api-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate JavaScript syntax
+        run: |
+          find backend/src scripts tests -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | while IFS= read -r -d '' file; do
+            node --check "$file"
+          done
+          npm test
+
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          KANOTOBA_WORKER_NAME: ${{ vars.KANOTOBA_WORKER_NAME }}
+          KANOTOBA_D1_DATABASE_NAME: ${{ vars.KANOTOBA_D1_DATABASE_NAME }}
+          KANOTOBA_D1_DATABASE_ID: ${{ vars.KANOTOBA_D1_DATABASE_ID }}
+        run: npm run deploy:api
+
+      - name: Configure allowed frontend origins (optional until Nuxt frontend exists)
+        if: ${{ vars.KANOTOBA_ALLOWED_ORIGINS != '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          KANOTOBA_WORKER_NAME: ${{ vars.KANOTOBA_WORKER_NAME }}
+          KANOTOBA_D1_DATABASE_NAME: ${{ vars.KANOTOBA_D1_DATABASE_NAME }}
+          KANOTOBA_D1_DATABASE_ID: ${{ vars.KANOTOBA_D1_DATABASE_ID }}
+          KANOTOBA_ALLOWED_ORIGINS: ${{ vars.KANOTOBA_ALLOWED_ORIGINS }}
+        run: |
+          printf '%s' "$KANOTOBA_ALLOWED_ORIGINS" | npx wrangler secret put ALLOWED_ORIGINS --config backend/.wrangler.generated.json

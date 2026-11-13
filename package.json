@@ -1,0 +1,27 @@
+{
+  "name": "kanotoba-api",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Kanotoba backend API and Cloudflare D1 database tools",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node scripts/wrangler.mjs dev",
+    "deploy:api": "node scripts/wrangler.mjs deploy",
+    "db:create": "node scripts/create-d1.mjs",
+    "db:migrate:local": "node scripts/wrangler.mjs d1 migrations apply kanotoba-db --local",
+    "db:migrate:remote": "node scripts/wrangler.mjs d1 migrations apply kanotoba-db --remote",
+    "import:kanji": "node scripts/import-kanji.mjs",
+    "db:seed:local": "node scripts/wrangler.mjs d1 execute kanotoba-db --local --file=database/seeds/kanji-seed.sql",
+    "db:seed:remote": "node scripts/wrangler.mjs d1 execute kanotoba-db --remote --file=database/seeds/kanji-seed.sql",
+    "db:import:local": "npm run import:kanji && npm run db:seed:local",
+    "db:import:remote": "npm run import:kanji && npm run db:seed:remote",
+    "test:api": "node scripts/test-api.mjs",
+    "test": "node --test tests/worker.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
