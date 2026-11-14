@@ -1,18 +1,37 @@
 # Third-party notices
 
-## Kanji alive language data
+## Kanji alive — kanji language data
 
-This project imports and adapts the `language-data/ka_data.csv` file from:
+Selected language data is adapted from `language-data/ka_data.csv` in:
 https://github.com/kanjialive/kanji-data-media
 
 Attribution: Kanji alive by Harumi Hibino Lory and Arno Bosse.
 License: Creative Commons Attribution 4.0 International (CC BY 4.0):
 https://creativecommons.org/licenses/by/4.0/
 
-Changes made by Kanotoba: selected language data are parsed from CSV, normalized into relational tables, assigned Kanotoba-local numeric IDs, and served through a custom API. The original `kname` field is retained as `source_key`.
+Changes made by Kanotoba: selected CSV fields are normalized into relational tables, local numeric IDs are assigned, and the original `kname` is retained as `source_key`. Media files and excluded copyrighted fields are not imported.
 
 Kanotoba is an independent project and is not affiliated with or endorsed by Kanji alive.
 
-The upstream repository states that some materials are excluded from the license/data archive due to copyright restrictions, including mnemonic hints, certain dictionary indices and textbook lesson/chapter organization. The importer does not import those fields or any media files. Two fonts in the upstream repository have separate licenses; Kanotoba does not import those fonts.
+## Grammar reference sources
 
-The included `scripts/fixtures/kanji-mini.csv` is a tiny test fixture adapted from the upstream `ka_data.csv` and is covered by the same attribution above.
+The initial grammar content pack references the following resources for pattern selection and cross-checking. No source explanatory prose or source example sentences from these resources are copied into the starter pack.
+
+### OpenJLPT
+
+- Repository: https://github.com/evanclan/OpenJLPT
+- License stated in the repository README: CC BY-SA 4.0.
+- License: https://creativecommons.org/licenses/by-sa/4.0/
+- Usage in the current pack: reference only; no OpenJLPT grammar explanations or examples are copied.
+
+### Yokubi — The Common Grammar Guide
+
+- Website: https://yoku.bi/
+- Repository: https://github.com/Morgawr/yokubi
+- License stated in Yokubi Credits: CC BY 4.0.
+- License: https://creativecommons.org/licenses/by/4.0/
+- Usage in the current pack: reference only; no Yokubi prose or examples are copied.
+
+## Kanotoba-authored grammar content
+
+The first 47-pattern pack contains original Kanotoba draft explanations, translations, examples and quiz items. The intended commercial model is proprietary, but final project terms and ownership should be confirmed by the project owner before commercial launch.

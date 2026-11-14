@@ -1,6 +1,6 @@
 {
   "name": "kanotoba-api",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Kanotoba backend API and Cloudflare D1 database tools",
@@ -19,7 +19,14 @@
     "db:import:local": "npm run import:kanji && npm run db:seed:local",
     "db:import:remote": "npm run import:kanji && npm run db:seed:remote",
     "test:api": "node scripts/test-api.mjs",
-    "test": "node --test tests/worker.test.mjs"
+    "test": "node --test tests/worker.test.mjs tests/grammar-api.test.mjs tests/quiz-api.test.mjs tests/grammar-content.test.mjs tests/preview-access.test.mjs",
+    "import:grammar": "node scripts/import-grammar.mjs",
+    "db:seed:grammar:local": "node scripts/wrangler.mjs d1 execute kanotoba-db --local --file=database/seeds/grammar-seed.sql",
+    "db:seed:grammar:remote": "node scripts/wrangler.mjs d1 execute kanotoba-db --remote --file=database/seeds/grammar-seed.sql",
+    "db:import:grammar:local": "npm run import:grammar && npm run db:seed:grammar:local",
+    "db:import:grammar:remote": "npm run import:grammar && npm run db:seed:grammar:remote",
+    "db:migrations:list:local": "node scripts/wrangler.mjs d1 migrations list kanotoba-db --local",
+    "db:migrations:list:remote": "node scripts/wrangler.mjs d1 migrations list kanotoba-db --remote"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

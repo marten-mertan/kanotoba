@@ -1,46 +1,31 @@
 # Kanotoba API
 
-Backend-only repository for **Kanotoba**, a Japanese-learning platform. The frontend is intentionally not included: the future Nuxt 3 application will be developed separately and will consume this API.
+Backend-only repository for **Kanotoba**, a Japanese-learning platform. The future Nuxt 3 frontend is a separate project and consumes this API.
 
 ## Architecture
 
 ```text
 kanotoba/
-├── backend/
-│   ├── src/
-│   │   ├── index.js              Worker entry point and API router
-│   │   ├── lib/                  Shared HTTP and CORS utilities
-│   │   └── routes/               One module per API resource
-│   │       ├── health.js
-│   │       ├── kanji.js
-│   │       ├── grammar.js
-│   │       └── quiz.js
-│   ├── .dev.vars.example         Local Worker environment template
-│   └── wrangler.template.json    Wrangler configuration template
+├── backend/                      Cloudflare Worker API
+│   └── src/
+│       ├── index.js               Router and request boundary
+│       ├── lib/                   HTTP and CORS helpers
+│       └── routes/                health, kanji, grammar, quiz
 ├── database/
-│   ├── migrations/               Versioned D1 schema migrations
-│   └── seeds/                    Generated SQL import artifacts (not committed)
-├── scripts/                      Node.js import, setup and test utilities
-├── .github/workflows/            Cloudflare Worker deployment only
-├── .env.example                  Local/CI configuration template
-└── package.json
+│   ├── migrations/                Versioned D1 migrations (never edit applied files)
+│   ├── content/                    Reviewed, versioned content source JSON
+│   └── seeds/                      Generated SQL imports (ignored by Git)
+├── scripts/                       Node.js import and Wrangler helpers
+├── tests/                         Worker and content tests
+└── .github/workflows/              Validates, migrates D1, then deploys Worker
 ```
 
-## Runtime model
+- **Cloudflare Workers** runs the API.
+- **Cloudflare D1** stores KanjiAlive data, grammar, quizzes, provenance, future learning paths, accounts and subscription metadata.
+- **Node.js 20+** runs local tooling and data import scripts.
+- Frontend, authentication, payments and user-facing premium gating are not implemented yet.
 
-- **Cloudflare Workers** runs the API. It is not an Express server and does not require a persistent Node.js process.
-- **Cloudflare D1** stores KanjiAlive-derived kanji data and the future grammar/quiz content in one SQLite-compatible database.
-- **Node.js 20+** runs local tooling: Wrangler, CSV import, SQL seed generation and API smoke tests.
-- **Nuxt 3 frontend is out of scope for this repository** and will be created separately.
-
-## 1. Requirements
-
-- Node.js 20 or newer
-- npm
-- A Cloudflare account
-- Wrangler authentication (`npx wrangler login`) or a Cloudflare API token
-
-Install dependencies:
+## 1. Install and configure
 
 ```bash
 npm install
@@ -53,160 +38,154 @@ cp .env.example .env
 cp backend/.dev.vars.example backend/.dev.vars
 ```
 
-On Windows PowerShell:
+On PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 Copy-Item backend/.dev.vars.example backend/.dev.vars
 ```
 
-Edit `.env` and set your Cloudflare account and D1 values. Keep real credentials in `.env`; it is ignored by Git.
+Set your Cloudflare account and D1 values in `.env`. Keep real tokens out of Git. `CLOUDFLARE_API_TOKEN` is a secret; D1 IDs and account IDs are identifiers, not credentials.
 
-`backend/.dev.vars` contains local Worker runtime variables such as `ALLOWED_ORIGINS`. It is also ignored by Git. Add the Nuxt development origin (normally `http://localhost:3000`) when the frontend is created.
+## 2. Database migrations
 
-## 2. Create the D1 database
-
-Authenticate with Cloudflare:
-
-```bash
-npx wrangler login
-```
-
-Create the database:
-
-```bash
-npm run db:create
-```
-
-Wrangler prints the D1 `database_id`. Copy it into the root `.env`:
-
-```dotenv
-KANOTOBA_D1_DATABASE_NAME=kanotoba-db
-KANOTOBA_D1_DATABASE_ID=YOUR_D1_DATABASE_ID
-```
-
-The database ID is a resource identifier, not an authentication credential. The Cloudflare API token is secret and must never be committed.
-
-## 3. Apply the database schema
-
-Apply migrations to the local development database:
+Apply all migrations locally:
 
 ```bash
 npm run db:migrate:local
 ```
 
-The migrations create three groups of tables:
+Apply them to production manually:
 
-- `kanji_*` — kanji, readings and example compounds.
-- `grammar_*` — grammar categories, patterns, examples and relationships.
-- `quiz_*` — quiz questions and answer options.
-
-The grammar and quiz tables are created now, but no grammar or quiz content is imported yet.
-
-For production, use `npm run db:migrate:remote` only after checking the target database and reviewing the migration files.
-
-## 4. What is `kanji-seed.sql` and what should I do with it?
-
-`kanji-seed.sql` is **not the database** and it is not a schema migration. It is a generated SQL import file that moves KanjiAlive source data into D1.
-
-The import pipeline is:
-
-```text
-KanjiAlive ka_data.csv
-        │
-        ▼
-npm run import:kanji
-        │
-        ▼
-database/seeds/kanji-seed.sql
-        │
-        ▼
-npm run db:seed:local
-        │
-        ▼
-Local D1 tables: kanji, kanji_readings, kanji_examples
+```bash
+npm run db:migrate:remote
 ```
 
-Generate the SQL file:
+The GitHub Actions deployment workflow also applies pending remote migrations **before deploying updated Worker code**. The Cloudflare API token used by Actions therefore needs the required D1 migration permissions in addition to Worker deployment permissions.
+
+Never edit a migration that has already been applied to a shared database. Add a new numbered migration instead.
+
+### Database domains
+
+The single D1 database is separated into logical groups:
+
+- `kanji`, `kanji_readings`, `kanji_examples` — KanjiAlive-derived kanji records.
+- `grammar_categories`, `grammar_patterns`, `grammar_senses`, `grammar_connections`, `grammar_examples`, `grammar_relations` — grammar catalogue.
+- `quiz_questions`, `quiz_options` — practice questions and answer keys.
+- `content_sources`, `content_provenance` — source, version, license and attribution tracking.
+- `learning_paths`, `learning_path_items` — future curated courses.
+- `users`, `subscriptions`, `subscription_plans`, `plan_features`, `billing_events`, `user_feature_overrides` — future account and subscription foundation.
+- `user_grammar_progress`, `user_kanji_progress`, `user_quiz_attempts`, `user_review_events` — future cloud progress and spaced repetition.
+
+The account and billing tables are schema foundations only. There is no authentication, checkout, payment-card storage, subscription webhook or premium authorization flow yet. Passwords must never be stored in this database; a future external identity provider should own authentication.
+
+## 3. KanjiAlive data import
+
+`kanji-seed.sql` is a generated SQL import file, not the database and not a schema migration.
 
 ```bash
 npm run import:kanji
-```
-
-The importer downloads the official KanjiAlive `ka_data.csv`, validates the required columns and record count, then writes `database/seeds/kanji-seed.sql`.
-
-Apply it to local D1:
-
-```bash
 npm run db:seed:local
 ```
 
-For convenience, the two commands can be run together:
+Or in one step:
 
 ```bash
 npm run db:import:local
 ```
 
-### Important properties of this seed
+For production, inspect the generated SQL, then run `npm run db:seed:remote`. It only refreshes the KanjiAlive-derived tables. The seed SQL is generated locally and ignored by Git.
 
-- The file is generated; do not edit it by hand.
-- It is ignored by Git and should not be committed.
-- You can delete it after a successful import; regenerate it with `npm run import:kanji` when needed.
-- Applying it clears and repopulates only `kanji`, `kanji_readings` and `kanji_examples`.
-- It does not delete grammar or quiz records.
-- Review the generated SQL before applying it to a remote database.
+## 4. Grammar content: 47 daily-use patterns
 
-To import into production, generate the SQL locally, inspect it, then run:
+The initial curated content pack is:
 
-```bash
-npm run db:seed:remote
+```text
+database/content/grammar-daily-core-v1.json
 ```
 
-This explicitly modifies the remote D1 database. Do not run it casually: the KanjiAlive-derived tables are replaced by the import.
+It contains:
 
-## 5. Local API development
+- **47** selected everyday patterns.
+- **11** learning categories.
+- Russian and English meanings and explanations.
+- Casual / polite formation guidance (including caveats where the forms are not exact equivalents).
+- **94** original Japanese example sentences with English and Russian translations.
+- **47** original four-option quiz questions with one keyed answer each.
+- Related-pattern links for commonly confused constructions.
+- Source/provenance records for each pattern and authored content item.
 
-Start the Worker locally:
+The examples, explanations, translations and quiz items in this pack were written for Kanotoba. All records are imported as `draft` / `ai_drafted` and are intentionally hidden from public endpoints until they have passed human editorial review. NINJAL, OpenJLPT and Yokubi are recorded as reference sources for pattern coverage and grammar cross-checking; their explanatory prose and example sentences are **not copied** into this pack.
 
-```bash
-npm run dev
-```
+Before publishing a record, review the Japanese formation rules, casual/polite register, naturalness of both examples, translations, and all quiz choices. `database/seeds/approve-reviewed-content.sql.example` shows how to publish a reviewed slug. Alternatively, update that pattern's `publication_status`, `editorial_review_status` and `reviewed_at` in the JSON source, then regenerate and import the seed. Use `native_reviewed` only after a qualified native Japanese reviewer has checked the full lesson. See `database/content/EDITORIAL_REVIEW_GUIDE.md`.
 
-By default Wrangler serves the API at `http://127.0.0.1:8787` and uses a local D1 database. Local D1 is separate from production D1.
+### JLPT levels and priority
 
-In another terminal, run the API smoke tests:
+JLPT levels in the starter pack are **approximate community study classifications**, not official current JLPT grammar lists. The JLPT does not publish a definitive grammar-point list for the post-2010 test. `learning_priority` is Kanotoba's editorial learning order; it is not a measured corpus-frequency ranking.
 
-```bash
-npm run test:api
-```
+### Generate and import grammar data
 
-Run the lightweight Node test suite:
-
-```bash
-npm test
-```
-
-Manual kanji lookup:
+Generate the SQL seed:
 
 ```bash
-curl "http://127.0.0.1:8787/api/public/kanji/%E6%B3%89"
+npm run import:grammar
 ```
+
+This creates:
+
+```text
+database/seeds/grammar-seed.sql
+```
+
+Apply it locally:
+
+```bash
+npm run db:seed:grammar:local
+```
+
+Or generate and apply locally:
+
+```bash
+npm run db:import:grammar:local
+```
+
+For production, first ensure migration `0003_content_provenance_and_product_foundation.sql` is applied, then run:
+
+```bash
+npm run import:grammar
+# Review database/seeds/grammar-seed.sql
+npm run db:seed:grammar:remote
+```
+
+Or run `npm run db:import:grammar:remote` after the migration is present. The grammar seed is **idempotent**: it upserts the 47 starter patterns, examples, senses, connections, categories, source metadata and quiz items. It does not delete unrelated grammar records, user progress, or KanjiAlive data. The generated SQL file is ignored by Git and should not be committed.
+
+## 5. Content licensing and commercial-readiness
+
+The schema records source and provenance data at the content-record level. Current policy:
+
+- KanjiAlive selected CSV data is attributed under CC BY 4.0 in `THIRD_PARTY_NOTICES.md`.
+- OpenJLPT is CC BY-SA 4.0. It is a reference only in the current grammar starter pack; no OpenJLPT explanation or example is copied. If its data is imported later, the relevant dataset portion must retain attribution and ShareAlike terms.
+- Yokubi is CC BY 4.0. It is a reference only in the current starter pack; no Yokubi prose or example is copied. Any future adapted content requires attribution and change notices.
+- NINJAL Nihongo Bunkei Database 2026.01 is a primary reference. The official item page identifies the dataset, but its file-level license for this version must be confirmed from the archive README before copying its entries, explanations or examples. The current starter pack imports none of that source text.
+- Kanotoba's original draft explanations, translations, examples and quizzes are intended to be proprietary, but the final outward-facing terms and ownership should be confirmed before commercial launch.
+
+See `CONTENT_LICENSING.md` and `THIRD_PARTY_NOTICES.md`. This is an engineering provenance record, not a legal opinion.
 
 ## 6. API endpoints
 
-All public endpoints are prefixed with `/api/public`.
+All public endpoints use `/api/public`.
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| GET | `/api/public/health` | API and D1 health check |
-| GET | `/api/public/kanji/:character` | One kanji with readings, meaning, radical and examples |
-| GET | `/api/public/kanji?grade=6&limit=20&offset=0` | Browse kanji; optional school-grade and text filters |
-| GET | `/api/public/grammar` | List grammar patterns; supports `category`, `level`, `limit`, `offset` |
-| GET | `/api/public/grammar/:id` | One grammar pattern with examples and related patterns |
-| GET | `/api/public/quiz?grammarId=11&limit=10` | Random active questions and options; correct answers are not returned |
-| POST | `/api/public/quiz/:id/answer` | Check submitted option IDs |
+| GET | `/api/public/health` | Worker and D1 health |
+| GET | `/api/public/kanji/:character` | One kanji with readings and examples |
+| GET | `/api/public/kanji?grade=6&limit=20` | Browse kanji |
+| GET | `/api/public/grammar` | Published free grammar; supports `category`, `level`, `core`, `limit`, `offset` |
+| GET | `/api/public/grammar/:id` | One pattern with senses, connections, examples, related items and source attribution |
+| GET | `/api/public/quiz?grammarId=1&limit=10` | Random published free quiz questions; answer keys are withheld |
+| POST | `/api/public/quiz/:id/answer` | Check selected option IDs and return feedback |
 
-Example request body for answer checking:
+Example answer request:
 
 ```json
 {
@@ -214,92 +193,62 @@ Example request body for answer checking:
 }
 ```
 
-The KanjiAlive source CSV has no separate numeric ID. Kanotoba assigns its own integer `id` and preserves the upstream `kname` value as `source_key`.
+The public grammar and quiz routes return only records marked `published`, `free`, and reviewed (`editorially_reviewed` or `native_reviewed`). The starter import creates drafts, not public lessons. After review, update the reviewed lesson, its examples and its quiz records using a controlled SQL approval step. If a record is not reviewed, leave it as a draft. Premium content can be represented in D1, but must not be exposed until a server-side authentication and entitlement check is implemented.
 
-`grade` in the KanjiAlive dataset is the Japanese school grade (学年), not a JLPT level.
+## 7. Local development and tests
 
-## 7. Backend source layout
+Start the Worker:
 
-The Worker entry point is intentionally small:
+```bash
+npm run dev
+```
 
-- `backend/src/index.js` — request validation, CORS, routing and top-level error handling.
-- `backend/src/routes/kanji.js` — kanji list and single-kanji lookup.
-- `backend/src/routes/grammar.js` — grammar list and detail endpoints.
-- `backend/src/routes/quiz.js` — question selection and answer checking.
-- `backend/src/routes/health.js` — health endpoint.
-- `backend/src/lib/http.js` — JSON responses and parameter parsing.
-- `backend/src/lib/cors.js` — CORS allow-list handling.
+Run unit, API-route and content validation tests:
 
-When adding another API resource, create a route module under `backend/src/routes/` and register it in `backend/src/index.js`. Keep shared helpers in `backend/src/lib/`.
+```bash
+npm test
+```
 
-## 8. Environment variables and secrets
+Run the API smoke test in a second terminal while the Worker is running:
 
-### Root `.env`
+```bash
+npm run test:api
+```
 
-| Variable | Purpose | Secret? |
-|---|---|---|
-| `KANOTOBA_WORKER_NAME` | Worker name; defaults to `kanotoba-api` | No |
-| `KANOTOBA_D1_DATABASE_NAME` | D1 database name | No |
-| `KANOTOBA_D1_DATABASE_ID` | Cloudflare D1 resource ID | No; still keep local in `.env` |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account identifier | No |
-| `CLOUDFLARE_API_TOKEN` | Wrangler/CI authentication token | **Yes** |
-| `KANOTOBA_KANJI_SOURCE_URL` | CSV source URL for importer | No |
-| `KANOTOBA_KANJI_SOURCE_REVISION` | Dataset revision label | No |
-| `KANOTOBA_API_BASE_URL` | Base URL used by the API smoke-test script | No |
+Examples:
 
-### Worker `.dev.vars`
+```bash
+curl "http://127.0.0.1:8787/api/public/kanji/%E6%B3%89"
+curl "http://127.0.0.1:8787/api/public/grammar?core=true"
+curl "http://127.0.0.1:8787/api/public/grammar/1"
+curl "http://127.0.0.1:8787/api/public/quiz?grammarId=1"
+```
 
-| Variable | Purpose |
-|---|---|
-| `ALLOWED_ORIGINS` | Comma-separated browser origins allowed by CORS |
+## 8. Deploy
 
-CORS is not authentication. It restricts which browser origins can read API responses; it does not prevent direct requests from `curl`, Postman or scripts. Public read endpoints are intentionally public. The API currently has no public insert, update or delete endpoints.
+GitHub Actions validates the JavaScript and tests, applies pending D1 migrations, then deploys the Worker. It does not automatically import generated seed SQL. Use the manual grammar import step above after reviewing the content pack.
 
-When the Nuxt frontend exists, add its exact origin to `ALLOWED_ORIGINS` locally and configure the production Worker variable/secret through Wrangler or the deployment workflow.
-
-## 9. Deploy the Worker to Cloudflare
-
-Set the following GitHub repository **Variables**:
+Required GitHub Variables:
 
 - `CLOUDFLARE_ACCOUNT_ID`
-- `KANOTOBA_WORKER_NAME` (normally `kanotoba-api`)
-- `KANOTOBA_D1_DATABASE_NAME` (normally `kanotoba-db`)
+- `KANOTOBA_WORKER_NAME`
+- `KANOTOBA_D1_DATABASE_NAME`
 - `KANOTOBA_D1_DATABASE_ID`
-- `KANOTOBA_ALLOWED_ORIGINS` (optional until the Nuxt frontend exists)
 
-Set this GitHub repository **Secret**:
+Required GitHub Secret:
 
-- `CLOUDFLARE_API_TOKEN` — use a token with only the permissions required to deploy the Worker and manage its secrets.
+- `CLOUDFLARE_API_TOKEN` with the minimum Worker deployment, D1 migration and Worker secret permissions required by the workflow.
 
-Deploy manually:
+## 9. Environment and security notes
 
-```bash
-npm run deploy:api
-```
-
-Or push changes to `backend/`, `database/migrations/`, `scripts/` or deployment configuration on the `main` branch. The GitHub Actions workflow deploys only the Worker; it does not publish a frontend and does not automatically apply production database migrations or import data.
-
-Apply production migrations and seed explicitly and separately after reviewing them:
-
-```bash
-npm run db:migrate:remote
-npm run import:kanji
-npm run db:seed:remote
-```
-
-## 10. KanjiAlive attribution and data license
-
-Kanji language data is adapted from **Kanji alive** by Harumi Hibino Lory and Arno Bosse:
-
-- Source repository: https://github.com/kanjialive/kanji-data-media
-- License: Creative Commons Attribution 4.0 International (CC BY 4.0)
-- License text: https://creativecommons.org/licenses/by/4.0/
-
-The importer uses `language-data/ka_data.csv` only. It does not import media, mnemonic hints, textbook chapter organization or third-party dictionary indices. Review `THIRD_PARTY_NOTICES.md` and the upstream repository's current license/README before redistributing updated source data.
+- `.env` and `backend/.dev.vars` are local-only and ignored by Git.
+- `CLOUDFLARE_API_TOKEN` must only exist in local secret storage or GitHub Secrets.
+- CORS is a browser response policy, not authentication.
+- Public API reads are public by design. Admin writes, user data and premium content must be protected server-side when those capabilities are implemented.
+- Do not put private API keys in any future Nuxt frontend environment variable that is bundled into client-side code.
 
 ## Development notes
 
-- Worker compatibility date is `2026-05-03`, matching the runtime date supported by the Wrangler/server binary in the current development environment. Upgrade deliberately after verifying support for a newer date.
-- Keep schema changes in new numbered SQL migrations. Do not edit migrations that have already been applied to a shared database.
-- The grammar and quiz schema is ready, but no grammar or quiz records are seeded yet.
-- User progress is not stored in D1 yet. It can begin in browser storage in the future Nuxt application; cross-device sync will require user authentication and a separate design.
+- Worker compatibility date is `2026-05-03`, matching the runtime date supported in the current development environment.
+- `grade` in KanjiAlive data is the Japanese school grade, not JLPT level.
+- KanjiAlive's source CSV does not provide a separate numeric ID; Kanotoba generates a local ID and retains the upstream `kname` as `source_key`.

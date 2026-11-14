@@ -1,0 +1,31 @@
+-- Example only. Review the Japanese forms, translations, examples and quiz first.
+-- Run against D1 only for specific slugs that have passed human review.
+-- Use 'native_reviewed' only after review by a qualified native Japanese speaker/teacher.
+
+-- Replace the example slug below with an actually reviewed pattern.
+UPDATE grammar_patterns
+SET publication_status = 'published',
+    editorial_review_status = 'editorially_reviewed',
+    reviewed_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+WHERE slug IN ('kamo-shirenai');
+
+UPDATE grammar_examples
+SET editorial_review_status = 'editorially_reviewed'
+WHERE grammar_id IN (
+    SELECT id FROM grammar_patterns
+    WHERE slug IN ('kamo-shirenai')
+      AND publication_status = 'published'
+);
+
+UPDATE quiz_questions
+SET publication_status = 'published',
+    editorial_review_status = 'editorially_reviewed'
+WHERE grammar_id IN (
+    SELECT id FROM grammar_patterns
+    WHERE slug IN ('kamo-shirenai')
+      AND publication_status = 'published'
+);
+
+-- Public API visibility requires both publication_status='published' and a
+-- reviewed status on the pattern / quiz. Premium gating remains separate.

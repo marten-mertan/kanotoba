@@ -13,7 +13,7 @@ export function getCorsContext(request, env) {
   const headers = {
     "Vary": "Origin",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-Kanotoba-Preview-Key",
     "Access-Control-Max-Age": "86400",
   };
 
