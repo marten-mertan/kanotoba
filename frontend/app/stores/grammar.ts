@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useApi } from '~/composables/useApi'
 import { API_ENDPOINTS } from '~/utils/api-endpoints'
 import { extractCollection } from '~/utils/extract-collection'
-import type { StoreStatus } from '~/types/store'
+import type { Status } from '~/types/store'
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Не удалось загрузить грамматику из API.'
@@ -13,7 +13,7 @@ export const useGrammarStore = defineStore('grammar', () => {
   const api = useApi()
 
   const items = ref<unknown[]>([])
-  const status = ref<StoreStatus>('idle')
+  const status = ref<Status>('idle')
   const error = ref<string | null>(null)
 
   async function fetchAll(force = false): Promise<void> {

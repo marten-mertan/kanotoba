@@ -1,1 +1,1 @@
-export type StoreStatus = 'idle' | 'loading' | 'success' | 'error'
+export type Status = 'idle' | 'loading' | 'success' | 'error'

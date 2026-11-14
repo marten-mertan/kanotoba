@@ -18,6 +18,12 @@ onMounted(() => {
       Kanji
     </h1>
 
+    <KanjiList
+      :class="$style.list"
+      :status="kanjiStore.status"
+      :cards="kanjiStore.items"
+    />
+
     <p
       v-if="kanjiStore.status === 'idle' || kanjiStore.status === 'loading'"
       class="text"
@@ -33,12 +39,6 @@ onMounted(() => {
       >
         {{ kanjiStore.error }}
       </p>
-      <button
-        type="button"
-        @click="kanjiStore.fetchAll(true)"
-      >
-        Retry
-      </button>
     </div>
 
     <p
@@ -61,5 +61,27 @@ onMounted(() => {
 .ContentPage {
   padding-top: 5rem;
   padding-bottom: 5rem;
+
+  @include respond-to(tablet) {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+
+  @include respond-to(mobile) {
+    padding-top: 2.4rem;
+    padding-bottom: 2.4rem;
+  }
+}
+
+.list {
+  margin-top: 4rem;
+
+  @include respond-to(tablet) {
+    margin-top: 2.4rem;
+  }
+
+  @include respond-to(mobile) {
+    margin-top: 1.6rem;
+  }
 }
 </style>

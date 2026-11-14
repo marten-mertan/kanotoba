@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useApi } from '~/composables/useApi'
 import { API_ENDPOINTS } from '~/utils/api-endpoints'
 import { extractCollection } from '~/utils/extract-collection'
-import type { StoreStatus } from '~/types/store'
+import type { Status } from '~/types/store'
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Не удалось загрузить кандзи из API.'
@@ -12,8 +12,8 @@ function getErrorMessage(error: unknown): string {
 export const useKanjiStore = defineStore('kanji', () => {
   const api = useApi()
 
-  const items = ref<unknown[]>([])
-  const status = ref<StoreStatus>('idle')
+  const items = ref<KanjiData[]>([])
+  const status = ref<Status>('idle')
   const error = ref<string | null>(null)
 
   async function fetchAll(force = false): Promise<void> {
@@ -30,7 +30,7 @@ export const useKanjiStore = defineStore('kanji', () => {
 
     try {
       const payload = await api.get<unknown>(API_ENDPOINTS.kanji)
-      const collection = extractCollection<unknown>(payload, 'kanji')
+      const collection = extractCollection<KanjiData>(payload, 'kanji')
 
       if (collection === null) {
         throw new Error(`Unexpected response format from ${API_ENDPOINTS.kanji}. Expected an array of records.`)
