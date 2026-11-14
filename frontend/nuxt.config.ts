@@ -28,11 +28,11 @@ export default defineNuxtConfig({
         },
         {
           name: 'title',
-          content: 'Nuxt3 Template',
+          content: 'Kanotoba',
         },
         {
           name: 'description',
-          content: 'Nuxt3 Template description',
+          content: 'Kanotoba description',
         },
         {
           name: 'author',
@@ -63,6 +63,14 @@ export default defineNuxtConfig({
     '~/assets/scss/vendors.scss',
     '~/assets/scss/common.scss',
   ],
+
+  runtimeConfig: {
+    public: {
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || process.env.API_URL || '',
+      previewMode: process.env.NODE_ENV === 'development' && process.env.PREVIEW_MODE === 'true',
+      previewApiKey: process.env.NODE_ENV === 'development' && process.env.PREVIEW_MODE === 'true' ? process.env.PREVIEW_API_KEY || '' : '',
+    },
+  },
 
   devServer: {
     host: '0.0.0.0',

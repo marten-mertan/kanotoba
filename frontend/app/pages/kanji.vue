@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { useContentStore } from '~/stores/content'
+import { useKanjiStore } from '~/stores/kanji'
 
 useSeoMeta({
-  title: 'Kanji — Kanotoba',
+  title: 'Kanotoba / Kanji',
 })
 
-const contentStore = useContentStore()
+const kanjiStore = useKanjiStore()
+
+onMounted(() => {
+  void kanjiStore.fetchAll()
+})
 </script>
 
 <template>
@@ -15,24 +19,40 @@ const contentStore = useContentStore()
     </h1>
 
     <p
-      v-if="!contentStore.kanjiLoaded"
+      v-if="kanjiStore.status === 'idle' || kanjiStore.status === 'loading'"
       class="text"
+      role="status"
     >
-      Data not yet loaded from API.
+      Loading kanji…
     </p>
 
+    <div v-else-if="kanjiStore.status === 'error'">
+      <p
+        class="text"
+        role="alert"
+      >
+        {{ kanjiStore.error }}
+      </p>
+      <button
+        type="button"
+        @click="kanjiStore.fetchAll(true)"
+      >
+        Retry
+      </button>
+    </div>
+
     <p
-      v-else-if="contentStore.kanji.length === 0"
+      v-else-if="kanjiStore.items.length === 0"
       class="text"
     >
-      Kanji not found.
+      No kanji found.
     </p>
 
     <p
       v-else
       class="text"
     >
-      Data loaded from API: {{ contentStore.kanji.length }} items.
+      Loaded records: {{ kanjiStore.items.length }}.
     </p>
   </section>
 </template>

@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { useContentStore } from '~/stores/content'
+import { useGrammarStore } from '~/stores/grammar'
 
 useSeoMeta({
-  title: 'Grammar — Kanotoba',
+  title: 'Kanotoba / Grammar',
 })
 
-const contentStore = useContentStore()
+const grammarStore = useGrammarStore()
+
+onMounted(() => {
+  void grammarStore.fetchAll()
+})
 </script>
 
 <template>
@@ -15,24 +19,40 @@ const contentStore = useContentStore()
     </h1>
 
     <p
-      v-if="!contentStore.grammarLoaded"
+      v-if="grammarStore.status === 'idle' || grammarStore.status === 'loading'"
       class="text"
+      role="status"
     >
-      Data not yet loaded from API.
+      Loading grammar…
     </p>
 
+    <div v-else-if="grammarStore.status === 'error'">
+      <p
+        class="text"
+        role="alert"
+      >
+        {{ grammarStore.error }}
+      </p>
+      <button
+        type="button"
+        @click="grammarStore.fetchAll(true)"
+      >
+        Retry
+      </button>
+    </div>
+
     <p
-      v-else-if="contentStore.grammar.length === 0"
+      v-else-if="grammarStore.items.length === 0"
       class="text"
     >
-      Grammar constructions not found.
+      No grammar rules found.
     </p>
 
     <p
       v-else
       class="text"
     >
-      Data loaded from API: {{ contentStore.grammar.length }} items.
+      Loaded records: {{ grammarStore.items.length }}.
     </p>
   </section>
 </template>
