@@ -5,4 +5,5 @@
 export const API_ENDPOINTS = {
   kanji: '/api/public/kanji',
   grammar: '/api/public/grammar',
+  kanjiItem: (kanjiId: string) => `/api/public/kanji/${kanjiId}`,
 } as const

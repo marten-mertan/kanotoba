@@ -6,7 +6,7 @@ import { extractCollection } from '~/utils/extract-collection'
 import type { Status } from '~/types/store'
 
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Не удалось загрузить кандзи из API.'
+  return error instanceof Error ? error.message : 'Cannot load kanji from API.'
 }
 
 export const useKanjiStore = defineStore('kanji', () => {
