@@ -25,65 +25,46 @@ onMounted(() => {
       {{ route.params.slug }}
     </h1>
 
-    <p
-      v-if="kanjiItemStore.status === 'idle' || kanjiItemStore.status === 'loading'"
-      class="text"
-      role="status"
+    <LayoutLoader
+      :status="kanjiItemStore.status"
+      loading-message="Loading kanji…"
+      error-message="An error occurred while loading kanji."
+      :is-empty="!kanjiItemStore.item"
+      empty-message="No kanji found."
     >
-      Loading kanji…
-    </p>
-
-    <div v-else-if="kanjiItemStore.status === 'error'">
-      <p
-        class="text"
-        role="alert"
-      >
-        {{ kanjiItemStore.error }}
-      </p>
-    </div>
-
-    <p
-      v-else-if="!kanjiItemStore.item"
-      class="text"
-    >
-      No kanji found.
-    </p>
-
-    <div
-      v-else
-      :class="$style.content"
-    >
-      <div :class="$style.info">
-        <span>{{ kanjiItemStore.item?.strokeCount }}</span> strokes
+      <div :class="$style.content">
+        <div :class="$style.info">
+          <span>{{ kanjiItemStore.item?.strokeCount }}</span> strokes
+        </div>
+        <div
+          v-if="kanjiItemStore.item?.readings.kunyomi"
+          :class="$style.info"
+        >
+          Kun: <span>{{ kanjiItemStore.item?.readings.kunyomi[0]?.kana || 'N/A' }}</span>
+        </div>
+        <div
+          v-if="kanjiItemStore.item?.readings.onyomi"
+          :class="$style.info"
+        >
+          On: <span>{{ kanjiItemStore.item?.readings.onyomi[0]?.kana || 'N/A' }}</span>
+        </div>
+        <div :class="$style.info">
+          Grade: <span>{{ kanjiItemStore.item?.schoolGrade || 'N/A' }}</span>
+        </div>
+        <div :class="$style.info">
+          Meaning: <span>{{ kanjiItemStore.item?.meaningEn || 'N/A' }}</span>
+        </div>
+        <div :class="$style.info">
+          Examples:
+        </div>
+        <div
+          v-for="(example) in kanjiItemStore.item?.examples"
+          :key="example.order"
+        >
+          {{ `${example.word}${example.meaningEn}` }}
+        </div>
       </div>
-      <div
-        v-if="kanjiItemStore.item?.readings.kunyomi"
-        :class="$style.info"
-      >
-        Kun: <span>{{ kanjiItemStore.item?.readings.kunyomi[0]?.kana || 'N/A' }}</span>
-      </div>
-      <div
-        v-if="kanjiItemStore.item?.readings.onyomi"
-        :class="$style.info"
-      >
-        On: <span>{{ kanjiItemStore.item?.readings.onyomi[0]?.kana || 'N/A' }}</span>
-      </div>
-      <div :class="$style.info">
-        Grade: <span>{{ kanjiItemStore.item?.schoolGrade || 'N/A' }}</span>
-      </div>
-      <div :class="$style.info">
-        Meaning: <span>{{ kanjiItemStore.item?.meaningEn || 'N/A' }}</span>
-      </div>
-      <div :class="$style.info">
-        Examples:
-      </div>
-      <div
-        v-for="(example) in kanjiItemStore.item?.examples"
-        :key="example.order"
-      >
-        {{ `${example.word}${example.meaningEn}` }}
-      </div>
-    </div>
+    </LayoutLoader>
   </section>
 </template>
 

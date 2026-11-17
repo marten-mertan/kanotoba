@@ -18,42 +18,17 @@ onMounted(() => {
       Grammar
     </h1>
 
-    <p
-      v-if="grammarStore.status === 'idle' || grammarStore.status === 'loading'"
-      class="text"
-      role="status"
+    <LayoutLoader
+      :status="grammarStore.status"
+      loading-message="Loading grammar…"
+      error-message="An error occurred while loading grammar."
+      :is-empty="grammarStore.items.length === 0"
+      empty-message="No grammar rules found."
     >
-      Loading grammar…
-    </p>
-
-    <div v-else-if="grammarStore.status === 'error'">
-      <p
-        class="text"
-        role="alert"
-      >
-        {{ grammarStore.error }}
+      <p class="text">
+        Loaded records: {{ grammarStore.items.length }}.
       </p>
-      <button
-        type="button"
-        @click="grammarStore.fetchAll(true)"
-      >
-        Retry
-      </button>
-    </div>
-
-    <p
-      v-else-if="grammarStore.items.length === 0"
-      class="text"
-    >
-      No grammar rules found.
-    </p>
-
-    <p
-      v-else
-      class="text"
-    >
-      Loaded records: {{ grammarStore.items.length }}.
-    </p>
+    </LayoutLoader>
   </section>
 </template>
 

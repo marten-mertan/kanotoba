@@ -18,42 +18,20 @@ onMounted(() => {
       Kanji
     </h1>
 
-    <KanjiList
-      :class="$style.list"
+    <LayoutLoader
       :status="kanjiStore.status"
-      :cards="kanjiStore.items"
-    />
-
-    <p
-      v-if="kanjiStore.status === 'idle' || kanjiStore.status === 'loading'"
-      class="text"
-      role="status"
+      loading-message="Loading kanji…"
+      error-message="An error occurred while loading kanji."
+      :is-empty="kanjiStore.items.length === 0"
+      empty-message="No kanji found."
     >
-      Loading kanji…
-    </p>
-
-    <div v-else-if="kanjiStore.status === 'error'">
-      <p
-        class="text"
-        role="alert"
-      >
-        {{ kanjiStore.error }}
-      </p>
-    </div>
-
-    <p
-      v-else-if="kanjiStore.items.length === 0"
-      class="text"
-    >
-      No kanji found.
-    </p>
-
-    <p
-      v-else
-      class="text"
-    >
+      <KanjiList
+        :class="$style.list"
+        :status="kanjiStore.status"
+        :cards="kanjiStore.items"
+      />
       Loaded records: {{ kanjiStore.items.length }}.
-    </p>
+    </LayoutLoader>
   </section>
 </template>
 
