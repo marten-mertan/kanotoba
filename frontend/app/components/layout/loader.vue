@@ -1,12 +1,10 @@
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
   status: Status
-  loadingMessage?: string
   errorMessage?: string
   isEmpty?: boolean
   emptyMessage?: string
 }>(), {
-  loadingMessage: 'Loading…',
   errorMessage: 'An error occurred.',
   isEmpty: false,
   emptyMessage: 'No data found.',
@@ -22,26 +20,24 @@ const showContent = computed(() =>
     v-if="!showContent"
     :class="$style.Loader"
   >
-    <div :class="$style.wrapper">
-      <div
-        v-if="props.status === 'idle' || props.status === 'loading'"
-        :class="$style.animation"
-      />
+    <div
+      v-if="props.status === 'idle' || props.status === 'loading'"
+      :class="$style.animation"
+    />
 
-      <p
-        v-else-if="props.status === 'error'"
-        class="text"
-      >
-        {{ props.errorMessage }}
-      </p>
+    <p
+      v-else-if="props.status === 'error'"
+      class="text"
+    >
+      {{ props.errorMessage }}
+    </p>
 
-      <p
-        v-else-if="props.isEmpty"
-        class="text"
-      >
-        {{ props.emptyMessage }}
-      </p>
-    </div>
+    <p
+      v-else-if="props.isEmpty"
+      class="text"
+    >
+      {{ props.emptyMessage }}
+    </p>
   </div>
 
   <slot v-else />
@@ -49,10 +45,6 @@ const showContent = computed(() =>
 
 <style lang="scss" module>
   .Loader {
-    position: relative;
-  }
-
-  .wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;

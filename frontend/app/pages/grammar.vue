@@ -20,7 +20,6 @@ onMounted(() => {
 
     <LayoutLoader
       :status="grammarStore.status"
-      loading-message="Loading grammar…"
       error-message="An error occurred while loading grammar."
       :is-empty="grammarStore.items.length === 0"
       empty-message="No grammar rules found."

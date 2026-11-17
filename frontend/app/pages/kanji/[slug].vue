@@ -27,7 +27,6 @@ onMounted(() => {
 
     <LayoutLoader
       :status="kanjiItemStore.status"
-      loading-message="Loading kanji…"
       error-message="An error occurred while loading kanji."
       :is-empty="!kanjiItemStore.item"
       empty-message="No kanji found."
