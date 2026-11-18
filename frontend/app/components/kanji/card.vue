@@ -10,23 +10,35 @@ const meaningSingle = computed(() => {
   const meanings = props.card.meaningEn.split(',')
   return meanings[0]?.trim() ?? ''
 })
+
+const kanjiPath = computed(() => {
+  const character = props.card?.character
+
+  if (!character) return undefined
+
+  return `/kanji/${encodeURIComponent(character)}/`
+})
 </script>
 
 <template>
-  <div :class="$style.KanjiCard">
+  <UiCard
+    :class="$style.KanjiCard"
+    :to="kanjiPath"
+  >
     <div
       v-if="props.card?.character"
       :class="$style.character"
     >
       {{ props.card.character }}
     </div>
+
     <div
       v-if="meaningSingle"
       :class="$style.meaning"
     >
       {{ meaningSingle }}
     </div>
-  </div>
+  </UiCard>
 </template>
 
 <style lang="scss" module>
@@ -39,9 +51,6 @@ const meaningSingle = computed(() => {
     width: 100%;
     min-width: 0;
     height: 14.4rem;
-    background-color: $bg-tertiary;
-    border: .1rem solid $border;
-    border-radius: .8rem;
   }
 
   .character {

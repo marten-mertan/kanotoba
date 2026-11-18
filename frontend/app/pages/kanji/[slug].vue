@@ -8,61 +8,39 @@ useSeoMeta({
   title: 'Kanotoba / Kanji / ' + route.params.slug,
 })
 
-onMounted(() => {
-  const slug = Array.isArray(route.params.slug)
-    ? route.params.slug[0]
-    : route.params.slug
+const slug = computed(() => {
+  const value = route.params.slug
 
-  if (slug) {
-    void kanjiItemStore.fetchItem(slug)
-  }
+  return Array.isArray(value) ? value[0] : value
+})
+
+function loadKanji() {
+  if (!slug.value) return
+
+  void kanjiItemStore.fetchItem(slug.value)
+}
+
+onMounted(() => {
+  loadKanji()
+})
+
+watch(slug, () => {
+  loadKanji()
 })
 </script>
 
 <template>
   <section :class="[$style.ContentPage, 'container']">
-    <h1 class="h1">
-      {{ route.params.slug }}
-    </h1>
-
     <LayoutLoader
       :status="kanjiItemStore.status"
       error-message="An error occurred while loading kanji."
       :is-empty="!kanjiItemStore.item"
       empty-message="No kanji found."
     >
-      <div :class="$style.content">
-        <div :class="$style.info">
-          <span>{{ kanjiItemStore.item?.strokeCount }}</span> strokes
-        </div>
-        <div
-          v-if="kanjiItemStore.item?.readings.kunyomi"
-          :class="$style.info"
-        >
-          Kun: <span>{{ kanjiItemStore.item?.readings.kunyomi[0]?.kana || 'N/A' }}</span>
-        </div>
-        <div
-          v-if="kanjiItemStore.item?.readings.onyomi"
-          :class="$style.info"
-        >
-          On: <span>{{ kanjiItemStore.item?.readings.onyomi[0]?.kana || 'N/A' }}</span>
-        </div>
-        <div :class="$style.info">
-          Grade: <span>{{ kanjiItemStore.item?.schoolGrade || 'N/A' }}</span>
-        </div>
-        <div :class="$style.info">
-          Meaning: <span>{{ kanjiItemStore.item?.meaningEn || 'N/A' }}</span>
-        </div>
-        <div :class="$style.info">
-          Examples:
-        </div>
-        <div
-          v-for="(example) in kanjiItemStore.item?.examples"
-          :key="example.order"
-        >
-          {{ `${example.word}${example.meaningEn}` }}
-        </div>
-      </div>
+      <KanjiItem
+        v-if="kanjiItemStore.item"
+        :item="kanjiItemStore.item"
+      />
     </LayoutLoader>
   </section>
 </template>
@@ -81,9 +59,5 @@ onMounted(() => {
     padding-top: 2.4rem;
     padding-bottom: 2.4rem;
   }
-}
-
-.info {
-  margin-top: .8rem;
 }
 </style>
