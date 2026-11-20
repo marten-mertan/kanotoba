@@ -35,6 +35,12 @@ const inputSliderValue = ref(50)
         :max="100"
         label="Test Slider"
       />
+      <UiTag size="medium">
+        Test Tag
+      </UiTag>
+      <UiTag size="small">
+        Test Tag
+      </UiTag>
     </div>
   </div>
 </template>
@@ -47,6 +53,7 @@ const inputSliderValue = ref(50)
 .container {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 2.4rem;
 }
 </style>
