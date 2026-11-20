@@ -1,22 +1,33 @@
 <script setup lang="ts">
-
+useSeoMeta({
+  title: 'Kanotoba / Japanese Learning',
+  description: 'Learn Japanese kanji and grammar with explanations and examples.',
+})
 </script>
 
 <template>
-  <div :class="[$style.IndexPage, 'container']">
-    <h1 class="h1">
-      Index Page
-    </h1>
-    <p class="text">
-      Content goes here
-    </p>
-  </div>
+  <main :class="[$style.HomePage, 'container']">
+    <HomeIntro />
+
+    <HomeLearning />
+
+    <HomeContact />
+  </main>
 </template>
 
 <style lang="scss" module>
-  .IndexPage {
-    padding-top: 10rem;
-    padding-bottom: 10rem;
-    text-align: center;
+.HomePage {
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+
+  @include respond-to(tablet) {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
   }
+
+  @include respond-to(mobile) {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+}
 </style>

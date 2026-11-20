@@ -42,11 +42,18 @@ const classList = computed(() => {
 
 .link {
   cursor: pointer;
-  transition: background-color $default-transition;
+  transform: translateY(0);
+  transition: background-color $default-transition, transform $default-transition;
 
   &:hover {
     background-color: $bg-secondary;
     border-color: $border-hover;
+    transform: translateY(-.2rem);
+  }
+
+  &:focus-visible {
+    outline: .2rem solid currentColor;
+    outline-offset: .3rem;
   }
 }
 </style>
