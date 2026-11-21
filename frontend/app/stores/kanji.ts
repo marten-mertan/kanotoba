@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { useApi } from '~/composables/useApi'
 import { API_ENDPOINTS } from '~/utils/api-endpoints'
 import { extractCollection } from '~/utils/extract-collection'
-import type { Status } from '~/types/store'
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Cannot load kanji from API.'

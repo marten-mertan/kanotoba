@@ -14,7 +14,7 @@ onMounted(() => {
 
 <template>
   <section :class="[$style.ContentPage, 'container']">
-    <h1 class="h1">
+    <h1 :class="$style.title">
       Kanji
     </h1>
 
@@ -47,6 +47,16 @@ onMounted(() => {
   @include respond-to(mobile) {
     padding-top: 2.4rem;
     padding-bottom: 2.4rem;
+  }
+}
+
+.title {
+  font-size: 3.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+
+  @include respond-to(mobile) {
+    font-size: 2.6rem;
   }
 }
 
