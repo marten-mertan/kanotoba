@@ -31,6 +31,9 @@ function createEnv(allowedOrigins = "https://app.example") {
           bind(...params) { this.params = params; return this; },
           async first() {
             if (sql.includes("COUNT(*) AS count FROM kanji")) return { count: 1235 };
+            if (sql.includes("SELECT COUNT(*) AS total") && sql.includes("FROM kanji")) {
+              return { total: 1 };
+            }
             if (sql.includes("FROM kanji") && sql.includes("WHERE character = ?")) {
               return this.params[0] === "泉" ? sampleKanji : null;
             }
@@ -115,7 +118,6 @@ test("unsupported methods return 405", async () => {
   assert.equal(response.headers.get("Allow"), "GET, POST, OPTIONS");
 });
 
-
 test("kanji endpoint decodes the character and returns readings", async () => {
   const request = new Request("https://api.example/api/public/kanji/%E6%B3%89");
   const response = await worker.fetch(request, createEnv());
@@ -137,9 +139,17 @@ test("kanji collection endpoint returns a paginated list", async () => {
   assert.equal(response.status, 200);
   assert.equal(body.items.length, 1);
   assert.equal(body.items[0].character, "泉");
-  assert.deepEqual(body.pagination, { limit: 10, offset: 0, returned: 1 });
+  assert.deepEqual(body.pagination, {
+    limit: 10,
+    offset: 0,
+    returned: 1,
+    total: 1,
+    page: 1,
+    totalPages: 1,
+    hasPrevious: false,
+    hasMore: false,
+  });
 });
-
 
 test("grammar detail rejects a non-numeric ID", async () => {
   const request = new Request("https://api.example/api/public/grammar/not-an-id");

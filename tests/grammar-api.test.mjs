@@ -32,6 +32,9 @@ function makeGrammarEnv() {
               if (params[0] !== 1) return null;
               return { ...basePattern, publication_status: sql.includes("<> 'archived'") ? "draft" : "published" };
             }
+            if (sql.includes("SELECT COUNT(*) AS total") && sql.includes("FROM grammar_patterns p")) {
+              return { total: 1 };
+            }
             throw new Error(`Unexpected first() SQL: ${sql}`);
           },
           async all() {
@@ -74,6 +77,16 @@ test("public grammar list returns localized fields and editorial status", async 
   assert.equal(body.items[0].category.nameEn, "Possibility & opinions");
   assert.equal(body.items[0].category.nameRu, "Возможность и мнения");
   assert.deepEqual(body.items[0].tags, ["uncertainty"]);
+  assert.deepEqual(body.pagination, {
+    limit: 50,
+    offset: 0,
+    returned: 1,
+    total: 1,
+    page: 1,
+    totalPages: 1,
+    hasPrevious: false,
+    hasMore: false,
+  });
 });
 
 test("grammar detail returns bilingual nested fields and source attribution", async () => {
@@ -101,4 +114,14 @@ test("preview access can read drafts only with the preview header key", async ()
   assert.equal(body.previewMode, true);
   assert.equal(body.items[0].publicationStatus, "draft");
   assert.equal(allowed.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(body.pagination, {
+    limit: 50,
+    offset: 0,
+    returned: 1,
+    total: 1,
+    page: 1,
+    totalPages: 1,
+    hasPrevious: false,
+    hasMore: false,
+  });
 });
