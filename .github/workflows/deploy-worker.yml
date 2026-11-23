@@ -5,8 +5,9 @@ on:
     branches: [main]
     paths:
       - "backend/**"
-      - "database/migrations/**"
+      - "database/**"
       - "scripts/**"
+      - "tests/**"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/deploy-worker.yml"
