@@ -1,4 +1,5 @@
-import { json, parsePositiveInteger, parseNonNegativeInteger } from "../lib/http.js";
+import { json } from "../lib/http.js";
+import { getPaginationParams, createPagination } from "../lib/pagination.js";
 
 const KANJI_SOURCE_REPOSITORY = "https://github.com/kanjialive/kanji-data-media";
 const KANJI_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
@@ -78,14 +79,9 @@ async function readKanji(db, character) {
 async function listKanji(db, url) {
   const grade = url.searchParams.get("grade");
   const query = url.searchParams.get("q")?.trim();
-  const limit = parsePositiveInteger(url.searchParams.get("limit"), 25, 100);
-  const offset = parseNonNegativeInteger(url.searchParams.get("offset"), 0, 100000);
+  const { limit, offset } = getPaginationParams(url, { defaultLimit: 25 });
 
-  let sql = `
-    SELECT id, character, stroke_count, meaning_en, school_grade
-    FROM kanji
-    WHERE 1 = 1
-  `;
+  const conditions = ["1 = 1"];
   const params = [];
 
   if (grade !== null) {
@@ -96,19 +92,30 @@ async function listKanji(db, url) {
     if (!Number.isInteger(gradeNumber) || gradeNumber < 1 || gradeNumber > 6) {
       return { error: "invalid_grade", status: 400 };
     }
-    sql += " AND school_grade = ?";
+    conditions.push("school_grade = ?");
     params.push(gradeNumber);
   }
 
   if (query) {
-    sql += " AND (character = ? OR meaning_en LIKE ?)";
+    conditions.push("(character = ? OR meaning_en LIKE ?)");
     params.push(query, `%${query}%`);
   }
 
-  sql += " ORDER BY school_grade, id LIMIT ? OFFSET ?";
-  params.push(limit, offset);
+  const fromWhere = `FROM kanji WHERE ${conditions.join(" AND ")}`;
 
-  const result = await db.prepare(sql).bind(...params).all();
+  const [result, countResult] = await Promise.all([
+    db.prepare(`
+      SELECT id, character, stroke_count, meaning_en, school_grade
+      ${fromWhere}
+      ORDER BY school_grade, id
+      LIMIT ? OFFSET ?
+    `).bind(...params, limit, offset).all(),
+    db.prepare(`
+      SELECT COUNT(*) AS total
+      ${fromWhere}
+    `).bind(...params).first(),
+  ]);
+
   const items = (result.results || []).map((row) => ({
     id: row.id,
     character: row.character,
@@ -117,7 +124,15 @@ async function listKanji(db, url) {
     schoolGrade: row.school_grade,
   }));
 
-  return { items, pagination: { limit, offset, returned: items.length } };
+  return {
+    items,
+    pagination: createPagination({
+      limit,
+      offset,
+      returned: items.length,
+      total: countResult?.total ?? 0,
+    }),
+  };
 }
 
 export async function handleKanji({ env, url, segments, corsHeaders }) {

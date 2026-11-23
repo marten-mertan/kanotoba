@@ -1,4 +1,5 @@
-import { json, parsePositiveInteger, parseNonNegativeInteger, parsePathInteger } from "../lib/http.js";
+import { json, parsePathInteger } from "../lib/http.js";
+import { getPaginationParams, createPagination } from "../lib/pagination.js";
 import { resolvePreviewMode } from "../lib/preview-access.js";
 
 function parseJsonArray(value) {
@@ -160,34 +161,151 @@ async function readGrammar(db, id, preview) {
   };
 }
 
-async function listGrammar(db, url, preview) {
-  const category = url.searchParams.get("category");
-  const level = url.searchParams.get("level");
-  const coreOnly = url.searchParams.get("core");
-  const limit = parsePositiveInteger(url.searchParams.get("limit"), 50, 100);
-  const offset = parseNonNegativeInteger(url.searchParams.get("offset"), 0, 100000);
+function readOptionalFilter(url, name, maxLength = 100) {
+  const value = url.searchParams.get(name);
+  if (value === null) return { value: null };
 
-  let sql = `
-    SELECT p.id, p.slug, p.pattern, p.reading, p.romaji, p.meaning_en, p.meaning_ru,
-           p.explanation_en, p.explanation_ru, p.jlpt_level, p.jlpt_level_basis,
-           p.register, p.register_label_en, p.register_label_ru,
-           p.learning_priority, p.is_core, p.content_tier, p.publication_status,
-           p.editorial_review_status, p.tags_json, p.tag_labels_json,
-           c.slug AS category_slug, c.name_en AS category_name_en, c.name_ru AS category_name_ru
-    FROM grammar_patterns p
-    LEFT JOIN grammar_categories c ON c.id = p.category_id
-    WHERE ${visibilityWhere("p", preview)}
-  `;
+  const normalized = value.trim();
+  if (!normalized) return { value: null };
+  if (normalized.length > maxLength) {
+    return { error: `invalid_${name}`, status: 400 };
+  }
+
+  return { value: normalized };
+}
+
+function isSlug(value) {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value);
+}
+
+async function listGrammar(db, url, preview) {
+  const queryFilter = readOptionalFilter(url, "q", 100);
+  const categoryFilter = readOptionalFilter(url, "category");
+  const levelFilter = readOptionalFilter(url, "level", 2);
+  const tagFilter = readOptionalFilter(url, "tag");
+  const registerFilter = readOptionalFilter(url, "register", 40);
+  const coreFilter = readOptionalFilter(url, "core", 5);
+  const { limit, offset } = getPaginationParams(url, { defaultLimit: 50 });
+
+  for (const filter of [queryFilter, categoryFilter, levelFilter, tagFilter, registerFilter, coreFilter]) {
+    if (filter.error) return filter;
+  }
+
+  const query = queryFilter.value;
+  const category = categoryFilter.value;
+  const level = levelFilter.value?.toUpperCase() ?? null;
+  const tag = tagFilter.value;
+  const register = registerFilter.value;
+  const core = coreFilter.value?.toLowerCase() ?? null;
+
+  if (category && !isSlug(category)) {
+    return { error: "invalid_category", status: 400 };
+  }
+  if (tag && !isSlug(tag)) {
+    return { error: "invalid_tag", status: 400 };
+  }
+  if (level && !["N1", "N2", "N3", "N4", "N5"].includes(level)) {
+    return { error: "invalid_level", status: 400 };
+  }
+  if (register && !/^[a-z][a-z0-9_-]*$/u.test(register)) {
+    return { error: "invalid_register", status: 400 };
+  }
+
+  let coreValue = null;
+  if (core !== null) {
+    if (["true", "1"].includes(core)) coreValue = 1;
+    else if (["false", "0"].includes(core)) coreValue = 0;
+    else return { error: "invalid_core", status: 400 };
+  }
+
+  const conditions = [visibilityWhere("p", preview)];
   const params = [];
 
-  if (category) { sql += " AND c.slug = ?"; params.push(category); }
-  if (level) { sql += " AND p.jlpt_level = ?"; params.push(level.toUpperCase()); }
-  if (coreOnly === "true" || coreOnly === "1") { sql += " AND p.is_core = 1"; }
+  if (category) {
+    conditions.push("c.slug = ?");
+    params.push(category);
+  }
 
-  sql += " ORDER BY COALESCE(p.learning_priority, 9999), COALESCE(c.sort_order, 999), p.id LIMIT ? OFFSET ?";
-  params.push(limit, offset);
+  if (level) {
+    conditions.push("p.jlpt_level = ?");
+    params.push(level);
+  }
 
-  const result = await db.prepare(sql).bind(...params).all();
+  if (coreValue !== null) {
+    conditions.push("p.is_core = ?");
+    params.push(coreValue);
+  }
+
+  if (tag) {
+    conditions.push(`EXISTS (
+      SELECT 1
+      FROM json_each(
+        CASE WHEN json_valid(p.tags_json) THEN p.tags_json ELSE '[]' END
+      ) AS grammar_tag
+      WHERE grammar_tag.value = ?
+    )`);
+    params.push(tag);
+  }
+
+  if (register) {
+    conditions.push(`EXISTS (
+      SELECT 1
+      FROM json_each(
+        CASE WHEN json_valid(p.register) THEN p.register ELSE '[]' END
+      ) AS grammar_register
+      WHERE grammar_register.value = ?
+    )`);
+    params.push(register);
+  }
+
+  if (query) {
+    const searchableColumns = [
+      "p.slug",
+      "p.pattern",
+      "p.reading",
+      "p.romaji",
+      "p.meaning_en",
+      "p.meaning_ru",
+      "p.explanation_en",
+      "p.explanation_ru",
+      "p.register_label_en",
+      "p.register_label_ru",
+      "p.tags_json",
+      "p.tag_labels_json",
+      "c.name_en",
+      "c.name_ru",
+    ];
+
+    conditions.push(`(${searchableColumns
+      .map((column) => `instr(lower(COALESCE(${column}, '')), lower(?)) > 0`)
+      .join(" OR ")})`);
+    params.push(...searchableColumns.map(() => query));
+  }
+
+  const fromWhere = `
+    FROM grammar_patterns p
+    LEFT JOIN grammar_categories c ON c.id = p.category_id
+    WHERE ${conditions.join(" AND ")}
+  `;
+
+  const [result, countResult] = await Promise.all([
+    db.prepare(`
+      SELECT p.id, p.slug, p.pattern, p.reading, p.romaji, p.meaning_en, p.meaning_ru,
+             p.explanation_en, p.explanation_ru, p.jlpt_level, p.jlpt_level_basis,
+             p.register, p.register_label_en, p.register_label_ru,
+             p.learning_priority, p.is_core, p.content_tier, p.publication_status,
+             p.editorial_review_status, p.tags_json, p.tag_labels_json,
+             c.slug AS category_slug, c.name_en AS category_name_en, c.name_ru AS category_name_ru
+      ${fromWhere}
+      ORDER BY COALESCE(p.learning_priority, 9999), COALESCE(c.sort_order, 999), p.id
+      LIMIT ? OFFSET ?
+    `).bind(...params, limit, offset).all(),
+    db.prepare(`
+      SELECT COUNT(*) AS total
+      ${fromWhere}
+    `).bind(...params).first(),
+  ]);
+
   const items = (result.results || []).map((row) => ({
     id: row.id,
     slug: row.slug,
@@ -217,7 +335,16 @@ async function listGrammar(db, url, preview) {
     } : null,
   }));
 
-  const response = { items, pagination: { limit, offset, returned: items.length } };
+  const response = {
+    items,
+    pagination: createPagination({
+      limit,
+      offset,
+      returned: items.length,
+      total: countResult?.total ?? 0,
+    }),
+  };
+
   if (preview) response.previewMode = true;
   return response;
 }
@@ -229,7 +356,12 @@ export async function handleGrammar({ request, env, url, segments, corsHeaders }
   const cacheHeaders = preview ? { ...corsHeaders, "Cache-Control": "no-store" } : corsHeaders;
 
   if (segments.length === 1) {
-    return json(await listGrammar(env.DB, url, preview), 200, cacheHeaders);
+    const result = await listGrammar(env.DB, url, preview);
+    if (result.error) {
+      const { status, ...error } = result;
+      return json(error, status, cacheHeaders);
+    }
+    return json(result, 200, cacheHeaders);
   }
   if (segments.length !== 2) return null;
 

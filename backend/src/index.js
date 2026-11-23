@@ -27,8 +27,8 @@ function availableEndpoints() {
   return [
     "GET /api/public/health",
     "GET /api/public/kanji/{character}",
-    "GET /api/public/kanji?grade=6&limit=20",
-    "GET /api/public/grammar",
+    "GET /api/public/kanji?q=日&grade=6&limit=25&offset=0",
+    "GET /api/public/grammar?q=日&level=N4&category=...&tag=...&register=...&core=true&limit=50&offset=0",
     "GET /api/public/grammar/{id}",
     "GET /api/public/quiz?grammarId=11",
     "POST /api/public/quiz/{id}/answer",
